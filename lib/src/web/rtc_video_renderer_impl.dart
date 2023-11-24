@@ -1,7 +1,8 @@
 import 'dart:async';
-import 'dart:html' as html;
-import 'dart:js_util' as jsutil;
-import 'dart:ui' as ui;
+import 'dart:js_interop';
+import 'dart:js_util';
+import 'package:web/helpers.dart' as html;
+import 'dart:ui_web' as ui;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
@@ -116,14 +117,16 @@ class RTCVideoRenderer extends ValueNotifier<RTCVideoValue>
     if (null != _srcObject) {
       if (stream.getVideoTracks().isNotEmpty) {
         _videoStream = html.MediaStream();
-        for (final track in _srcObject!.jsStream.getVideoTracks()) {
-          _videoStream!.addTrack(track);
+        final videoTracks = _srcObject!.jsStream.getVideoTracks().toDart;
+        for (final track in videoTracks) {
+          _videoStream!.addTrack(track as html.MediaStreamTrack);
         }
       }
       if (stream.getAudioTracks().isNotEmpty) {
         _audioStream = html.MediaStream();
-        for (final track in _srcObject!.jsStream.getAudioTracks()) {
-          _audioStream!.addTrack(track);
+        final audioTracks = _srcObject!.jsStream.getAudioTracks().toDart;
+        for (final track in audioTracks) {
+          _audioStream!.addTrack(track as html.MediaStreamTrack);
         }
       }
     } else {
@@ -133,18 +136,18 @@ class RTCVideoRenderer extends ValueNotifier<RTCVideoValue>
 
     if (null != _audioStream) {
       if (null == _audioElement) {
-        _audioElement = html.AudioElement()
+        _audioElement = html.createAudioElement()
           ..id = _elementIdForAudio
           ..muted = stream.ownerTag == 'local'
           ..autoplay = true;
-        _ensureAudioManagerDiv().append(_audioElement!);
+        _ensureAudioManagerDiv().appendChild(_audioElement!);
       }
-      _audioElement?.srcObject = _audioStream;
+      _audioElement?.srcObject = _audioStream as JSObject;
     }
 
     var videoElement = findHtmlView();
     if (null != videoElement) {
-      videoElement.srcObject = _videoStream;
+      videoElement.srcObject = _videoStream as JSObject;
       _applyDefaultVideoStyles(findHtmlView()!);
     }
 
@@ -164,7 +167,9 @@ class RTCVideoRenderer extends ValueNotifier<RTCVideoValue>
     if (null != _srcObject) {
       if (stream.getVideoTracks().isNotEmpty) {
         _videoStream = html.MediaStream();
-        for (final track in _srcObject!.jsStream.getVideoTracks()) {
+        final videoTracks = _srcObject!.jsStream.getVideoTracks().toDart;
+        for (final jsTrack in videoTracks) {
+          final track = jsTrack as html.MediaStreamTrack;
           if (track.id == trackId) {
             _videoStream!.addTrack(track);
           }
@@ -172,8 +177,9 @@ class RTCVideoRenderer extends ValueNotifier<RTCVideoValue>
       }
       if (stream.getAudioTracks().isNotEmpty) {
         _audioStream = html.MediaStream();
-        for (final track in _srcObject!.jsStream.getAudioTracks()) {
-          _audioStream!.addTrack(track);
+        final audioTracks = _srcObject!.jsStream.getAudioTracks().toDart;
+        for (final track in audioTracks) {
+          _audioStream!.addTrack(track as html.MediaStreamTrack);
         }
       }
     } else {
@@ -183,33 +189,33 @@ class RTCVideoRenderer extends ValueNotifier<RTCVideoValue>
 
     if (null != _audioStream) {
       if (null == _audioElement) {
-        _audioElement = html.AudioElement()
+        _audioElement = html.createAudioElement()
           ..id = _elementIdForAudio
           ..muted = stream.ownerTag == 'local'
           ..autoplay = true;
-        _ensureAudioManagerDiv().append(_audioElement!);
+        _ensureAudioManagerDiv().appendChild(_audioElement!);
       }
-      _audioElement?.srcObject = _audioStream;
+      _audioElement?.srcObject = _audioStream as JSObject;
     }
 
     var videoElement = findHtmlView();
     if (null != videoElement) {
-      videoElement.srcObject = _videoStream;
+      videoElement.srcObject = _videoStream as JSObject;
       _applyDefaultVideoStyles(findHtmlView()!);
     }
 
     value = value.copyWith(renderVideo: renderVideo);
   }
 
-  html.DivElement _ensureAudioManagerDiv() {
+  html.HTMLDivElement _ensureAudioManagerDiv() {
     var div = html.document.getElementById(_elementIdForAudioManager);
-    if (null != div) return div as html.DivElement;
+    if (null != div) return div as html.HTMLDivElement;
 
-    div = html.DivElement()
+    div = html.createElementTag('div') as html.HTMLDivElement
       ..id = _elementIdForAudioManager
       ..style.display = 'none';
-    html.document.body?.append(div);
-    return div as html.DivElement;
+    html.document.body?.appendChild(div);
+    return div as html.HTMLDivElement;
   }
 
   html.VideoElement? findHtmlView() {
@@ -229,7 +235,7 @@ class RTCVideoRenderer extends ValueNotifier<RTCVideoValue>
     element?.load();
     _audioElement?.remove();
     final audioManager = html.document.getElementById(_elementIdForAudioManager)
-        as html.DivElement?;
+        as html.HTMLDivElement?;
     if (audioManager != null && !audioManager.hasChildNodes()) {
       audioManager.remove();
     }
@@ -240,9 +246,8 @@ class RTCVideoRenderer extends ValueNotifier<RTCVideoValue>
   Future<bool> audioOutput(String deviceId) async {
     try {
       final element = _audioElement;
-      if (null != element && jsutil.hasProperty(element, 'setSinkId')) {
-        await jsutil.promiseToFuture<void>(
-            jsutil.callMethod(element, 'setSinkId', [deviceId]));
+      if (null != element && hasProperty(element, 'setSinkId')) {
+        await element.setSinkId(deviceId).toDart;
 
         return true;
       }
@@ -261,11 +266,11 @@ class RTCVideoRenderer extends ValueNotifier<RTCVideoValue>
       }
       _subscriptions.clear();
 
-      final element = html.VideoElement()
+      final element = html.createElementTag('video') as html.VideoElement
         ..autoplay = true
         ..muted = true
         ..controls = false
-        ..srcObject = _videoStream
+        ..srcObject = _videoStream as JSObject
         ..id = _elementIdForVideo
         ..setAttribute('playsinline', 'true');
 
